@@ -944,4 +944,149 @@ renderAll();
 </script>
 
 </body>
+  <script>
+// ---- STATS + STREAK FIX PATCH (safe override) ----
+(function(){
+  // Use only days that have actually passed in this month
+  function daysForStats(){
+    var today = new Date();
+    var isCurrent =
+      (year === today.getFullYear() && month === today.getMonth());
+    var total = daysInMonth(year, month);
+    return isCurrent ? Math.min(today.getDate(), total) : total;
+  }
+
+  // Re-define streak calculation: streak up to TODAY
+  window.computeHabitStreaksForMonth = function(h){
+    var limit = daysForStats();
+    var current = 0, best = 0;
+
+    for (var d = 1; d <= limit; d++){
+      var dt = ymd(year, month, d);
+      var done = state.checks[dt] && state.checks[dt][h.id];
+
+      if (done){
+        current++;
+        if (current > best) best = current;
+      } else {
+        current = 0;
+      }
+    }
+    return { current: current, best: best };
+  };
+
+  // Re-define status bars
+  window.renderStatusBars = function(){
+    statusBars.innerHTML = "";
+    var limit = daysForStats();
+    var bestOverall = 0;
+    var bestName = "-";
+
+    for (var i = 0; i < state.habits.length; i++){
+      var h = state.habits[i];
+      var count = 0;
+
+      for (var d = 1; d <= limit; d++){
+        var dt = ymd(year, month, d);
+        if (state.checks[dt] && state.checks[dt][h.id]) count++;
+      }
+
+      var pct = (limit === 0) ? 0 : Math.round((count / limit) * 100);
+      var streaks = computeHabitStreaksForMonth(h);
+
+      if (streaks.best > bestOverall){
+        bestOverall = streaks.best;
+        bestName = h.name + " (" + streaks.best + "d)";
+      }
+
+      var row = document.createElement("div");
+      row.className = "status-row";
+      row.innerHTML =
+        "<span style='width:120px;'>" + h.name + "</span>" +
+        "<div class='bar-wrap'><div class='bar' style='width:" + pct + "%;'></div></div>" +
+        "<span style='font-size:12px;'>" + count + "d • streak " + streaks.current + "d</span>";
+
+      statusBars.appendChild(row);
+    }
+
+    bestStreakLabel.textContent = bestOverall > 0 ? bestName : "-";
+  };
+
+  // Re-define global stats (month %, today %, last 7 days, etc.)
+  window.updateStats = function(){
+    var limit = daysForStats();
+
+    // Month completion (only days passed)
+    var totalCells = state.habits.length * limit;
+    var done = 0;
+    for (var i = 0; i < state.habits.length; i++){
+      var h = state.habits[i];
+      for (var d = 1; d <= limit; d++){
+        var dt = ymd(year, month, d);
+        if (state.checks[dt] && state.checks[dt][h.id]) done++;
+      }
+    }
+    var pct = totalCells === 0 ? 0 : Math.round((done / totalCells) * 100);
+    summaryCompletion.textContent = pct + "%";
+    summaryHabits.textContent = state.habits.length;
+    summaryHobbies.textContent = state.hobbies.length;
+
+    // Today completion
+    var todayKey = todayStr();
+    var doneToday = 0;
+    for (var k = 0; k < state.habits.length; k++){
+      var hid = state.habits[k].id;
+      if (state.checks[todayKey] && state.checks[todayKey][hid]) doneToday++;
+    }
+    var pctToday = state.habits.length === 0
+        ? 0
+        : Math.round((doneToday / state.habits.length) * 100);
+    todayCompletion.textContent = pctToday + "%";
+
+    // Today mood
+    if (state.moods[todayKey]){
+      todayMood.textContent = state.moods[todayKey].mood;
+    } else {
+      todayMood.textContent = "-";
+    }
+
+    // Last 7 days
+    var sumPct = 0, countDays = 0;
+    var moodSum = 0, moodCount = 0;
+    var base = new Date();
+
+    for (var i2 = 0; i2 < 7; i2++){
+      var dObj = new Date(base.getTime() - i2 * 24*60*60*1000);
+      var key =
+        dObj.getFullYear() + "-" +
+        ("0" + (dObj.getMonth()+1)).slice(-2) + "-" +
+        ("0" + dObj.getDate()).slice(-2);
+
+      var doneD = 0;
+      for (var hidx = 0; hidx < state.habits.length; hidx++){
+        var hid2 = state.habits[hidx].id;
+        if (state.checks[key] && state.checks[key][hid2]) doneD++;
+      }
+      if (state.habits.length > 0){
+        sumPct += Math.round((doneD / state.habits.length) * 100);
+        countDays++;
+      }
+
+      if (state.moods[key]){
+        moodSum += state.moods[key].mood;
+        moodCount++;
+      }
+    }
+
+    weeklyCompletion.textContent =
+      countDays === 0 ? "0%" : Math.round(sumPct / countDays) + "%";
+    weeklyMood.textContent =
+      moodCount === 0 ? "-" : (Math.round((moodSum / moodCount)*10)/10);
+  };
+
+  // Re-render everything with new logic
+  renderAll();
+})();
+</script>
 </html>
+
