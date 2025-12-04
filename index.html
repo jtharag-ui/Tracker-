@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Habit & Hobby Tracker</title>
+
+<!-- iPhone app-like behavior -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tracker">
+
+<style>
+:root{
+  --bg:#f5f5f7;
+  --panel:#ffffff;
+  --text:#111;
+  --muted:#777;
+  --accent:#4f9cff;
+  --accent-soft:rgba(79,156,255,0.12);
+  --radius:16px;
+}
+
+/* Dark mode variables */
+body.dark{
+  --bg:#0f1115;
+  --panel:#1a1d23;
+  --text:#f4f4f4;
+  --muted:#9aa0a6;
+  --accent:#5fa0ff;
+  --accent-soft:rgba(95,160,255,0.18);
+}
+
+body{
+  margin:0;
+  padding:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+
+/* Screens */
+.screen{
+  display:none;
+  padding:20px;
+  padding-bottom:90px; /* space for bottom nav */
+}
+.screen.active{
+  display:block;
+  animation:fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(8px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* Cards */
+.card{
+  background:var(--panel);
+  padding:16px;
+  border-radius:var(--radius);
+  box-shadow:0 4px 18px rgba(0,0,0,0.06);
+  margin-bottom:16px;
+}
+.title{
+  font-size:18px;
+  font-weight:700;
+  margin-bottom:10px;
+}
+.header{
+  font-size:24px;
+  font-weight:700;
+  margin-bottom:12px;
+}
+
+/* Inputs & buttons */
+.input-box{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:15px;
+  box-sizing:border-box;
+}
+body.dark .input-box{
+  background:#1b1f26;
+  border-color:#333;
+  color:var(--text);
+}
+
+.btn{
+  padding:10px 14px;
+  border-radius:10px;
+  border:none;
+  background:var(--accent);
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+  width:100%;
+  text-align:center;
+}
+.btn-secondary{
+  background:var(--accent-soft);
+  color:var(--accent);
+  border:none;
+}
+.btn-small{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  background:transparent;
+  cursor:pointer;
+  font-size:12px;
+}
+body.dark .btn-small{
+  border-color:#444;
+  color:var(--text);
+}
+
+.flex-between{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+/* Lists */
+.list-box{
+  max-height:230px;
+  overflow-y:auto;
+}
+.row-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  padding:6px 0;
+  border-bottom:1px solid #ddd;
+}
+body.dark .row-item{
+  border-bottom:1px solid #333;
+}
+
+/* Bottom nav */
+.navbar{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:70px;
+  background:var(--panel);
+  box-shadow:0 -4px 18px rgba(0,0,0,0.12);
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  z-index:50;
+}
+.nav-item{
+  flex:1;
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+}
+.nav-icon{
+  display:block;
+  font-size:22px;
+  margin-bottom:2px;
+  opacity:0.7;
+  transition:0.2s;
+}
+.nav-item.active{
+  color:var(--accent);
+}
+.nav-item.active .nav-icon{
+  opacity:1;
+  transform:scale(1.1);
+}
+
+/* Grid */
+#calendarGrid{
+  display:grid;
+  gap:4px;
+}
+.day-head{
+  width:32px;
+  min-width:32px;
+  max-width:32px;
+  font-size:12px;
+  text-align:center;
+  color:var(--muted);
+}
+.check-cell{
+  width:32px;
+  min-width:32px;
+  max-width:32px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.check{
+  width:18px;
+  height:18px;
+}
+
+/* Status rows */
+.status-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:6px 0;
+}
+.bar-wrap{
+  flex:1;
+  height:12px;
+  background:#ddd;
+  border-radius:8px;
+}
+body.dark .bar-wrap{
+  background:#333;
+}
+.bar{
+  height:12px;
+  border-radius:8px;
+  background:var(--accent);
+}
+
+/* Helper */
+@media (max-width:700px){
+  .header{font-size:22px;}
+}
+</style>
+</head>
+<body>
+<!-- HOME SCREEN -->
+<div id="home" class="screen active">
+
+  <div class="header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Dashboard</span>
+    <button id="darkToggle" class="btn-small">Dark Mode</button>
+  </div>
+
+  <!-- Today Overview -->
+  <div class="card">
+    <div class="title">Today Overview</div>
+    <div class="flex-between">
+      <div>
+        <div style="font-size:13px;color:var(--muted);">Today Completion</div>
+        <div id="todayCompletion" style="font-size:26px;font-weight:700;">0%</div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--muted);">Today Mood</div>
+        <div id="todayMood" style="font-size:26px;font-weight:700;">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="title">Summary (This Month)</div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Total Habits</span>
+      <b id="summaryHabits">0</b>
+    </div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Total Hobbies</span>
+      <b id="summaryHobbies">0</b>
+    </div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Month Completion</span>
+      <b id="summaryCompletion">0%</b>
+    </div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Best Streak (this month)</span>
+      <b id="bestStreakLabel">-</b>
+    </div>
+  </div>
+
+  <!-- Weekly Summary -->
+  <div class="card">
+    <div class="title">Last 7 Days</div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Average Completion</span>
+      <b id="weeklyCompletion">0%</b>
+    </div>
+
+    <div class="flex-between" style="margin-top:6px;">
+      <span>Average Mood</span>
+      <b id="weeklyMood">-</b>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="title">Quick Actions</div>
+    <button class="btn" style="margin-top:8px;" onclick="openScreen('habits')">+ Add Habit</button>
+    <button class="btn" style="margin-top:8px;" onclick="openScreen('hobbies')">+ Add Hobby</button>
+    <button class="btn" style="margin-top:8px;" onclick="openScreen('mood')">Log Mood</button>
+  </div>
+
+</div>
+<!-- HABITS SCREEN -->
+<div id="habits" class="screen">
+
+  <div class="header">Habits</div>
+
+  <div class="card">
+    <div class="title">Add Habit</div>
+    <input id="habitInput" class="input-box" placeholder="Enter habit name...">
+    <button id="addHabit" class="btn" style="margin-top:8px;">Add Habit</button>
+  </div>
+
+  <div class="card">
+    <div class="title">Your Habits</div>
+    <div id="habitList" class="list-box">
+      <!-- habits appear here -->
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+      Tap ❌ to delete a habit.
+    </div>
+  </div>
+
+</div>
+
+<!-- HOBBIES SCREEN -->
+<div id="hobbies" class="screen">
+
+  <div class="header">Hobbies</div>
+
+  <div class="card">
+    <div class="title">Add Hobby</div>
+    <input id="hobbyInput" class="input-box" placeholder="Enter hobby name...">
+    <button id="addHobby" class="btn" style="margin-top:8px;">Add Hobby</button>
+  </div>
+
+  <div class="card">
+    <div class="title">Your Hobbies</div>
+    <div id="hobbyList" class="list-box">
+      <!-- hobbies appear here -->
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+      Each hobby can store notes/time spent for the day.
+    </div>
+  </div>
+
+</div>
+<!-- CALENDAR SCREEN -->
+<div id="calendar" class="screen">
+
+  <div class="header">Calendar</div>
+
+  <div class="card">
+    <div class="row">
+      <button id="prevMonth" class="btn-small" style="width:90px;">◀ Prev</button>
+      <div id="monthLabel" style="font-size:18px;font-weight:700;">Month</div>
+      <button id="nextMonth" class="btn-small" style="width:90px;">Next ▶</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title">Monthly Habit Grid</div>
+    <div style="overflow-x:auto;padding-bottom:8px;">
+      <div id="calendarGrid"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+      Scroll sideways if needed. Tap checkboxes to mark a habit done for the day.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title">Status Bars (This Month)</div>
+    <div id="statusBars"></div>
+  </div>
+
+</div>
+<!-- MOOD SCREEN -->
+<div id="mood" class="screen">
+
+  <div class="header">Mood & Motivation</div>
+
+  <div class="card">
+    <div class="title">Log Mood</div>
+
+    <label style="font-size:13px;color:var(--muted);">Date</label>
+    <input id="moodDate" type="date" class="input-box" style="margin-bottom:6px;">
+
+    <label style="font-size:13px;color:var(--muted);">Mood (1–10)</label>
+    <select id="moodVal" class="input-box" style="margin-bottom:6px;">
+      <option>10</option><option>9</option><option>8</option><option>7</option><option>6</option>
+      <option>5</option><option>4</option><option>3</option><option>2</option><option>1</option>
+    </select>
+
+    <label style="font-size:13px;color:var(--muted);">Motivation (1–10)</label>
+    <select id="motVal" class="input-box">
+      <option>10</option><option>9</option><option>8</option><option>7</option><option>6</option>
+      <option>5</option><option>4</option><option>3</option><option>2</option><option>1</option>
+    </select>
+
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button id="saveMood" class="btn" style="flex:1;">Save</button>
+      <button id="clearMood" class="btn-secondary" style="flex:1;">Clear</button>
+    </div>
+  </div>
+
+  <div class="card" style="height:260px;display:flex;flex-direction:column;">
+    <div class="title">Monthly Mood Chart</div>
+    <div style="flex:1;position:relative;">
+      <canvas id="moodChart" style="width:100%;height:100%;"></canvas>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+      Shows mood & motivation for the current calendar month.
+    </div>
+  </div>
+
+</div>
+<!-- BOTTOM NAVBAR -->
+<div class="navbar">
+  <div class="nav-item active" data-screen="home">
+    <span class="nav-icon">🏠</span>Home
+  </div>
+  <div class="nav-item" data-screen="habits">
+    <span class="nav-icon">✔️</span>Habits
+  </div>
+  <div class="nav-item" data-screen="hobbies">
+    <span class="nav-icon">🎯</span>Hobbies
+  </div>
+  <div class="nav-item" data-screen="calendar">
+    <span class="nav-icon">📅</span>Calendar
+  </div>
+  <div class="nav-item" data-screen="mood">
+    <span class="nav-icon">🙂</span>Mood
+  </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// ========== UTILITIES ==========
+function uid(){
+  return "id_" + new Date().getTime() + "_" + Math.floor(Math.random()*100000);
+}
+function todayStr(){
+  var d = new Date();
+  return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+}
+function ymd(y,m,d){
+  return y+"-"+("0"+(m+1)).slice(-2)+"-"+("0"+d).slice(-2);
+}
+function daysInMonth(y,m){
+  return new Date(y,m+1,0).getDate();
+}
+
+// ========== STATE ==========
+var state = JSON.parse(localStorage.getItem("trackerState") || "{}");
+if(!state.habits)  state.habits  = [];
+if(!state.hobbies) state.hobbies = [];
+if(!state.checks)  state.checks  = {}; // date -> { habitId: true }
+if(!state.moods)   state.moods   = {}; // date -> { mood, mot }
+
+function saveState(){
+  localStorage.setItem("trackerState", JSON.stringify(state));
+}
+
+// ========== GLOBAL DATE ==========
+var now   = new Date();
+var year  = now.getFullYear();
+var month = now.getMonth();
+
+// ========== DOM ELEMENTS ==========
+var darkToggle = document.getElementById("darkToggle");
+
+var habitInput  = document.getElementById("habitInput");
+var addHabitBtn = document.getElementById("addHabit");
+var habitList   = document.getElementById("habitList");
+
+var hobbyInput  = document.getElementById("hobbyInput");
+var addHobbyBtn = document.getElementById("addHobby");
+var hobbyList   = document.getElementById("hobbyList");
+
+var monthLabel  = document.getElementById("monthLabel");
+var calendarGrid= document.getElementById("calendarGrid");
+var statusBars  = document.getElementById("statusBars");
+
+var summaryHabits     = document.getElementById("summaryHabits");
+var summaryHobbies    = document.getElementById("summaryHobbies");
+var summaryCompletion = document.getElementById("summaryCompletion");
+var bestStreakLabel   = document.getElementById("bestStreakLabel");
+
+var todayCompletion = document.getElementById("todayCompletion");
+var todayMood       = document.getElementById("todayMood");
+var weeklyCompletion= document.getElementById("weeklyCompletion");
+var weeklyMood      = document.getElementById("weeklyMood");
+
+var moodDate   = document.getElementById("moodDate");
+var moodVal    = document.getElementById("moodVal");
+var motVal     = document.getElementById("motVal");
+var saveMoodBtn= document.getElementById("saveMood");
+var clearMoodBtn=document.getElementById("clearMood");
+var moodChartCanvas = document.getElementById("moodChart");
+var moodChart = null;
+
+// ========== DARK MODE ==========
+if(localStorage.getItem("darkMode") === "true"){
+  document.body.classList.add("dark");
+  darkToggle.textContent = "Light Mode";
+}
+darkToggle.onclick = function(){
+  document.body.classList.toggle("dark");
+  var isDark = document.body.classList.contains("dark");
+  localStorage.setItem("darkMode", isDark ? "true" : "false");
+  darkToggle.textContent = isDark ? "Light Mode" : "Dark Mode";
+};
+
+// ========== NAVIGATION ==========
+function openScreen(id){
+  var screens = document.getElementsByClassName("screen");
+  for(var i=0;i<screens.length;i++){
+    screens[i].classList.remove("active");
+  }
+  document.getElementById(id).classList.add("active");
+
+  var items = document.getElementsByClassName("nav-item");
+  for(var j=0;j<items.length;j++){
+    items[j].classList.remove("active");
+    if(items[j].getAttribute("data-screen") === id){
+      items[j].classList.add("active");
+    }
+  }
+
+  // Re-render chart when mood screen opened
+  if(id === "mood"){
+    renderMoodChart();
+  }
+}
+var navItems = document.getElementsByClassName("nav-item");
+for(var i=0;i<navItems.length;i++){
+  (function(el){
+    el.onclick = function(){
+      openScreen(el.getAttribute("data-screen"));
+    };
+  })(navItems[i]);
+}
+
+// ========== HABITS ==========
+function renderHabits(){
+  habitList.innerHTML = "";
+  for(var i=0;i<state.habits.length;i++){
+    var h = state.habits[i];
+    var row = document.createElement("div");
+    row.className = "row-item";
+
+    var name = document.createElement("span");
+    name.textContent = h.name;
+
+    var del = document.createElement("button");
+    del.className = "btn-small";
+    del.textContent = "❌";
+    (function(id){
+      del.onclick = function(){
+        var arr = [];
+        for(var j=0;j<state.habits.length;j++){
+          if(state.habits[j].id !== id) arr.push(state.habits[j]);
+        }
+        state.habits = arr;
+        saveState();
+        renderAll();
+      };
+    })(h.id);
+
+    row.appendChild(name);
+    row.appendChild(del);
+    habitList.appendChild(row);
+  }
+}
+
+addHabitBtn.onclick = function(){
+  var name = habitInput.value.trim();
+  if(!name){ alert("Enter habit name"); return; }
+  state.habits.push({id:uid(), name:name});
+  habitInput.value = "";
+  saveState();
+  renderAll();
+};
+
+// ========== HOBBIES ==========
+function renderHobbies(){
+  hobbyList.innerHTML = "";
+  for(var i=0;i<state.hobbies.length;i++){
+    var h = state.hobbies[i];
+    var row = document.createElement("div");
+    row.className = "row-item";
+
+    var left = document.createElement("div");
+    left.style.flex = "1";
+    left.style.display = "flex";
+    left.style.flexDirection = "column";
+
+    var name = document.createElement("span");
+    name.textContent = h.name;
+
+    var notes = document.createElement("input");
+    notes.className = "input-box";
+    notes.style.marginTop = "4px";
+    notes.placeholder = "Notes / time spent (optional)";
+    notes.value = h.notes || "";
+
+    (function(obj, inp){
+      inp.onchange = function(){
+        obj.notes = inp.value;
+        saveState();
+      };
+    })(h, notes);
+
+    left.appendChild(name);
+    left.appendChild(notes);
+
+    var del = document.createElement("button");
+    del.className = "btn-small";
+    del.textContent = "❌";
+    (function(id){
+      del.onclick = function(){
+        var arr = [];
+        for(var j=0;j<state.hobbies.length;j++){
+          if(state.hobbies[j].id !== id) arr.push(state.hobbies[j]);
+        }
+        state.hobbies = arr;
+        saveState();
+        renderAll();
+      };
+    })(h.id);
+
+    row.appendChild(left);
+    row.appendChild(del);
+    hobbyList.appendChild(row);
+  }
+}
+
+addHobbyBtn.onclick = function(){
+  var name = hobbyInput.value.trim();
+  if(!name){ alert("Enter hobby name"); return; }
+  state.hobbies.push({id:uid(), name:name, notes:""});
+  hobbyInput.value = "";
+  saveState();
+  renderAll();
+};
+
+// ========== CALENDAR GRID ==========
+function renderCalendar(){
+  var days = daysInMonth(year,month);
+  var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  monthLabel.textContent = monthNames[month] + " " + year;
+
+  calendarGrid.innerHTML = "";
+  calendarGrid.style.gridTemplateColumns = "150px repeat("+days+", 32px)";
+
+  var head = document.createElement("div");
+  head.style.fontWeight = "700";
+  head.textContent = "Habit";
+  calendarGrid.appendChild(head);
+
+  for(var d=1;d<=days;d++){
+    var dh = document.createElement("div");
+    dh.className = "day-head";
+    dh.textContent = d;
+    calendarGrid.appendChild(dh);
+  }
+
+  for(var i=0;i<state.habits.length;i++){
+    var h = state.habits[i];
+
+    var nameCell = document.createElement("div");
+    nameCell.style.fontWeight = "600";
+    nameCell.textContent = h.name;
+    calendarGrid.appendChild(nameCell);
+
+    for(var day=1;day<=days;day++){
+      var date = ymd(year,month,day);
+      var cell = document.createElement("div");
+      cell.className = "check-cell";
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "check";
+
+      if(state.checks[date] && state.checks[date][h.id]){
+        cb.checked = true;
+      }
+
+      (function(dt, hid, box){
+        box.onclick = function(){
+          if(!state.checks[dt]) state.checks[dt] = {};
+          state.checks[dt][hid] = box.checked;
+          saveState();
+          updateStats();
+          renderStatusBars();
+        };
+      })(date, h.id, cb);
+
+      cell.appendChild(cb);
+      calendarGrid.appendChild(cell);
+    }
+  }
+}
+
+// ========== STATUS BARS & STREAKS ==========
+function computeHabitStreaksForMonth(h){
+  var days = daysInMonth(year,month);
+  var current = 0;
+  var best = 0;
+  for(var d=1;d<=days;d++){
+    var dt = ymd(year,month,d);
+    var done = state.checks[dt] && state.checks[dt][h.id];
+    if(done){
+      current++;
+      if(current>best) best = current;
+    } else {
+      current = 0;
+    }
+  }
+  return {current:current, best:best};
+}
+
+function renderStatusBars(){
+  statusBars.innerHTML = "";
+  var days = daysInMonth(year,month);
+  var bestOverall = 0;
+  var bestName = "-";
+
+  for(var i=0;i<state.habits.length;i++){
+    var h = state.habits[i];
+    var count = 0;
+    for(var d=1;d<=days;d++){
+      var dt = ymd(year,month,d);
+      if(state.checks[dt] && state.checks[dt][h.id]) count++;
+    }
+    var pct = days===0 ? 0 : Math.round((count/days)*100);
+
+    var streaks = computeHabitStreaksForMonth(h);
+    if(streaks.best > bestOverall){
+      bestOverall = streaks.best;
+      bestName = h.name + " ("+bestOverall+"d)";
+    }
+
+    var row = document.createElement("div");
+    row.className = "status-row";
+    row.innerHTML =
+      "<span style='width:120px;'>"+h.name+"</span>"+
+      "<div class='bar-wrap'><div class='bar' style='width:"+pct+"%;'></div></div>"+
+      "<span style='font-size:12px;'>"+count+"d • streak "+streaks.current+"d</span>";
+    statusBars.appendChild(row);
+  }
+
+  bestStreakLabel.textContent = bestOverall>0 ? bestName : "-";
+}
+
+// ========== STATS: TODAY + MONTH + WEEK ==========
+function updateStats(){
+  var days = daysInMonth(year,month);
+  var totalCells = state.habits.length * days;
+  var done = 0;
+  for(var i=0;i<state.habits.length;i++){
+    var h = state.habits[i];
+    for(var d=1;d<=days;d++){
+      var dt = ymd(year,month,d);
+      if(state.checks[dt] && state.checks[dt][h.id]) done++;
+    }
+  }
+  var pct = totalCells===0 ? 0 : Math.round((done/totalCells)*100);
+  summaryCompletion.textContent = pct + "%";
+  summaryHabits.textContent = state.habits.length;
+  summaryHobbies.textContent = state.hobbies.length;
+
+  // today
+  var today = todayStr();
+  var doneToday = 0;
+  for(var k=0;k<state.habits.length;k++){
+    var id = state.habits[k].id;
+    if(state.checks[today] && state.checks[today][id]) doneToday++;
+  }
+  var pctToday = state.habits.length===0?0:Math.round((doneToday/state.habits.length)*100);
+  todayCompletion.textContent = pctToday + "%";
+  if(state.moods[today]){
+    todayMood.textContent = state.moods[today].mood;
+  }else{
+    todayMood.textContent = "-";
+  }
+
+  // last 7 days stats
+  var sumPct = 0;
+  var countDays = 0;
+  var moodSum = 0;
+  var moodCount = 0;
+  var base = new Date();
+
+  for(var i2=0;i2<7;i2++){
+    var dObj = new Date(base.getTime() - i2*24*60*60*1000);
+    var key = dObj.getFullYear()+"-"+("0"+(dObj.getMonth()+1)).slice(-2)+"-"+("0"+dObj.getDate()).slice(-2);
+
+    var doneD = 0;
+    for(var hidx=0;hidx<state.habits.length;hidx++){
+      var hid2 = state.habits[hidx].id;
+      if(state.checks[key] && state.checks[key][hid2]) doneD++;
+    }
+    if(state.habits.length>0){
+      sumPct += Math.round((doneD/state.habits.length)*100);
+      countDays++;
+    }
+
+    if(state.moods[key]){
+      moodSum += state.moods[key].mood;
+      moodCount++;
+    }
+  }
+
+  weeklyCompletion.textContent = countDays===0 ? "0%" : Math.round(sumPct/countDays) + "%";
+  weeklyMood.textContent = moodCount===0 ? "-" : (Math.round((moodSum/moodCount)*10)/10);
+}
+
+// ========== MOOD CHART ==========
+function renderMoodChart(){
+  var days = daysInMonth(year,month);
+  var labels = [];
+  var moodData = [];
+  var motData  = [];
+
+  for(var d=1;d<=days;d++){
+    var dt = ymd(year,month,d);
+    labels.push(d);
+    if(state.moods[dt]){
+      moodData.push(state.moods[dt].mood);
+      motData.push(state.moods[dt].mot);
+    } else {
+      moodData.push(null);
+      motData.push(null);
+    }
+  }
+
+  if(moodChart){
+    moodChart.destroy();
+    moodChart = null;
+  }
+
+  var ctx = moodChartCanvas.getContext("2d");
+  moodChart = new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:labels,
+      datasets:[
+        {
+          label:"Mood",
+          data:moodData,
+          borderColor:"#4ade80",
+          backgroundColor:"rgba(74,222,128,0.25)",
+          borderWidth:2,
+          tension:0.3,
+          pointRadius:2
+        },
+        {
+          label:"Motivation",
+          data:motData,
+          borderColor:"#60a5fa",
+          backgroundColor:"rgba(96,165,250,0.25)",
+          borderWidth:2,
+          tension:0.3,
+          pointRadius:2
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      scales:{
+        y:{min:0,max:10},
+        x:{ticks:{autoSkip:true}}
+      }
+    }
+  });
+}
+
+// ========== MOOD SAVE / CLEAR ==========
+saveMoodBtn.onclick = function(){
+  var d = moodDate.value;
+  if(!d){ alert("Select date first"); return; }
+  state.moods[d] = {
+    mood: parseInt(moodVal.value,10),
+    mot:  parseInt(motVal.value,10)
+  };
+  saveState();
+  renderMoodChart();
+  updateStats();
+  alert("Saved!");
+};
+
+clearMoodBtn.onclick = function(){
+  var d = moodDate.value;
+  if(!d){ alert("Select date first"); return; }
+  delete state.moods[d];
+  saveState();
+  renderMoodChart();
+  updateStats();
+  alert("Cleared!");
+};
+
+// ========== MONTH SWITCH ==========
+document.getElementById("prevMonth").onclick = function(){
+  month--;
+  if(month<0){ month=11; year--; }
+  renderAll();
+};
+document.getElementById("nextMonth").onclick = function(){
+  month++;
+  if(month>11){ month=0; year++; }
+  renderAll();
+};
+
+// ========== MASTER RENDER ==========
+function renderAll(){
+  renderHabits();
+  renderHobbies();
+  renderCalendar();
+  renderStatusBars();
+  updateStats();
+  // only render chart if mood screen is visible
+  if(document.getElementById("mood").classList.contains("active")){
+    renderMoodChart();
+  }
+}
+
+// Init mood date to today
+moodDate.value = todayStr();
+// Initial render
+renderAll();
+</script>
+
+</body>
+</html>
